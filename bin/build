@@ -3,5 +3,6 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$ROOT/build"
 cd "$ROOT/build"
-qmake6 "$ROOT/hype.pro"
-make -j"$(nproc)"
+QMAKE=${QMAKE:-$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || echo qmake6)}
+"$QMAKE" "$ROOT/hype.pro"
+make -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"

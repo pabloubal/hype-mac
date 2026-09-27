@@ -4,18 +4,23 @@ set -eu
 HYPE_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$HYPE_ROOT/build"
 
-# Serialize builds when the launcher is activated more than once.
-exec 9>"$HYPE_ROOT/build/dev-build.lock"
-flock 9
 if ! "$HYPE_ROOT/bin/build" >"$HYPE_ROOT/build/dev-build.log" 2>&1; then
     printf 'Hype build failed. See %s\n' "$HYPE_ROOT/build/dev-build.log" >&2
-    notify-send --app-name="Hype (Development)" --icon="$HYPE_ROOT/pkgbuild/hype.svg" \
-        --urgency=critical "Hype build failed" \
-        "See $HYPE_ROOT/build/dev-build.log" || true
+    # Notify on macOS via osascript; fall back to notify-send on Linux.
+    if [ "$(uname)" = "Darwin" ]; then
+        osascript -e 'display notification "See build/dev-build.log" with title "Hype build failed"' 2>/dev/null || true
+    else
+        notify-send --app-name="Hype (Development)" --icon="$HYPE_ROOT/pkgbuild/hype.svg" \
+            --urgency=critical "Hype build failed" \
+            "See $HYPE_ROOT/build/dev-build.log" || true
+    fi
     exit 1
 fi
-exec 9>&-
 
 cd "$HYPE_ROOT"
 export HYPE_DESKTOP_FILE=hype-dev
-exec "$HYPE_ROOT/build/hype" open "$@" >>"$HYPE_ROOT/build/dev-run.log" 2>&1
+if [ "$(uname)" = "Darwin" ]; then
+    exec "$HYPE_ROOT/build/hype.app/Contents/MacOS/hype" open "$@" >>"$HYPE_ROOT/build/dev-run.log" 2>&1
+else
+    exec "$HYPE_ROOT/build/hype" open "$@" >>"$HYPE_ROOT/build/dev-run.log" 2>&1
+fi

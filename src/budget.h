@@ -3,6 +3,11 @@
 #include <QThread>
 #include <QtGlobal>
 
+#ifdef Q_OS_MACOS
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
+
 // Sizes parallel work to this machine: a big workstation uses its cores, while a small
 // laptop stays inside the memory it has free rather than swapping or being killed.
 namespace budget {
@@ -10,6 +15,7 @@ namespace budget {
 // Memory the kernel could hand out right now without swapping, or -1 when unknown. A
 // container or systemd slice with its own limit counts only the room left inside it.
 inline qint64 availableBytes() {
+#ifdef Q_OS_LINUX
     qint64 free = -1;
     // Files under /proc report a size of zero, so QFile::atEnd() is true before the first
     // read; read them whole instead of line by line.
@@ -41,6 +47,18 @@ inline qint64 availableBytes() {
         }
     }
     return free;
+#elif defined(Q_OS_MACOS)
+    qint64 free = -1;
+    vm_statistics64_data_t stats;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    if (host_statistics64(mach_host_self(), HOST_VM_INFO64,
+                          reinterpret_cast<host_info64_t>(&stats), &count) == KERN_SUCCESS) {
+        free = qint64(stats.free_count + stats.inactive_count) * vm_page_size;
+    }
+    return free;
+#else
+    return -1;
+#endif
 }
 
 // The arithmetic behind workers(), kept pure so it can be tested for any machine.

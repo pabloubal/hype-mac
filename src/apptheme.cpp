@@ -3,7 +3,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QRegularExpression>
+#include <QStyleHints>
 #include <cmath>
 
 static QColor mix(const QColor &base, const QColor &ink, double amount) {
@@ -19,10 +21,20 @@ static QColor contrastInk(const QColor &color) {
                              .0722 * linear(color.blueF());
     return luminance > .179 ? QColor("#111111") : QColor("#ffffff");
 }
+
+#ifdef Q_OS_LINUX
 AppTheme::AppTheme(QObject *parent)
     : AppTheme(qEnvironmentVariable("XDG_STATE_HOME", QDir::homePath() + "/.local/state") +
                    "/omarchy/current",
                parent) {}
+#elif defined(Q_OS_MACOS)
+AppTheme::AppTheme(QObject *parent)
+    : AppTheme(QDir::homePath() + "/Library/Application Support/Hype/current", parent) {}
+#else
+AppTheme::AppTheme(QObject *parent)
+    : AppTheme(QDir::homePath() + "/.config/hype/current", parent) {}
+#endif
+
 AppTheme::AppTheme(const QString &currentDirectory, QObject *parent)
     : QObject(parent), m_currentDirectory(currentDirectory) {
     m_reload.setSingleShot(true);
@@ -30,6 +42,11 @@ AppTheme::AppTheme(const QString &currentDirectory, QObject *parent)
     connect(&m_reload, &QTimer::timeout, this, &AppTheme::reload);
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, [this] { m_reload.start(); });
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this] { m_reload.start(); });
+#ifdef Q_OS_MACOS
+    // Respond to macOS dark/light mode changes.
+    if (auto *hints = QGuiApplication::styleHints())
+        connect(hints, &QStyleHints::colorSchemeChanged, this, [this] { m_reload.start(); });
+#endif
     reload();
 }
 void AppTheme::reload() {
@@ -44,6 +61,22 @@ void AppTheme::reload() {
                 values[match.captured(1)] = QColor(match.captured(2));
         }
     }
+#ifdef Q_OS_MACOS
+    // When no Omarchy/Hype theme directory is installed, use a built-in palette
+    // that follows the macOS system dark/light appearance.
+    if (values.isEmpty()) {
+        const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+        if (dark) {
+            values["background"] = QColor("#1e1e2e");
+            values["foreground"] = QColor("#cdd6f4");
+            values["accent"]     = QColor("#89b4fa");
+        } else {
+            values["background"] = QColor("#eff1f5");
+            values["foreground"] = QColor("#4c4f69");
+            values["accent"]     = QColor("#1e66f5");
+        }
+    }
+#endif
     const QColor bg = values.value("background", QColor("#1a1b26"));
     const QColor fg = values.value("foreground", QColor("#c0caf5"));
     const QColor accent = values.value("accent", QColor("#7aa2f7"));
@@ -65,6 +98,7 @@ void AppTheme::reload() {
     // Popups take the desktop's window corners: square unless the theme rounds them.
     int rounding = 0;
     QStringList windowFiles;
+#ifdef Q_OS_LINUX
     for (const auto &name : {"/hyprland.lua", "/hyprland.conf"}) {
         QFile window(theme + name);
         if (!window.open(QIODevice::ReadOnly))
@@ -77,6 +111,10 @@ void AppTheme::reload() {
                 rounding = match.captured(1).toInt();
         }
     }
+#elif defined(Q_OS_MACOS)
+    // macOS always rounds window corners.
+    rounding = 10;
+#endif
     if (colors != m_colors || rounding != m_rounding) {
         m_colors = colors;
         m_rounding = rounding;

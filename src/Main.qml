@@ -22,6 +22,13 @@ ApplicationWindow {
     palette.windowText: win.ui.foreground; palette.button: win.ui.button; palette.buttonText: win.ui.foreground
     palette.highlight: win.ui.selection; palette.highlightedText: win.ui.selectionText
     palette.mid: win.ui.hover; palette.light: win.ui.border; palette.dark: win.ui.button
+    
+    function osShortcut(sequence) {
+        if (Qt.platform.os === "osx")
+            return sequence.replace(/Ctrl\+/g, "⌘").replace(/Shift\+/g, "⇧").replace(/Enter|Return/g, "Return").replace(/Delete/g, "⌫");
+        return sequence;
+    }
+
     property bool markdown: false
     property bool overview: false
     readonly property string mode: overview ? "overview" : markdown ? "markdown" : "visual"
@@ -765,13 +772,13 @@ ApplicationWindow {
             ToolbarIconButton {
                 objectName: "overviewButton"; iconName: "overview"
                 ink: win.overview ? win.ui.accent : win.ui.muted
-                description: (win.overview ? "Leave the overview" : "Overview") + " (Ctrl+M)"
+                description: (win.overview ? "Leave the overview" : "Overview") + win.osShortcut(" (Ctrl+M)")
                 onClicked: win.toggleOverview()
             }
             ToolbarIconButton {
                 objectName: "modeButton"
                 iconName: win.editingMode
-                description: (win.editingMode === "markdown" ? "Markdown · Switch to Visual" : "Visual · Switch to Markdown") + " (Ctrl+.)"
+                description: (win.editingMode === "markdown" ? "Markdown · Switch to Visual" : "Visual · Switch to Markdown") + win.osShortcut(" (Ctrl+.)")
                 onClicked: win.overview ? win.setMode(win.editingMode === "markdown" ? "visual" : "markdown") : win.toggleSource()
             }
             ToolbarIconButton {
@@ -808,22 +815,22 @@ ApplicationWindow {
         background: Rectangle { color: Qt.alpha(win.ui.panel, 0.92); border.color: win.ui.windowBorder; border.width: 2; radius: win.rounding }
         readonly property var groups: [
             { title: "Presentation", keys: [
-                ["Ctrl+N", "New presentation"], ["Ctrl+O", "Open"], ["Ctrl+S", "Save"], ["Ctrl+Shift+S", "Save as"],
-                ["Ctrl+E", "Export as PDF"], ["Ctrl+Shift+E", "Export as PowerPoint"], ["Ctrl+Space / F5", "Present"], ["Esc", "Stop presenting"],
+                [win.osShortcut("Ctrl+N"), "New presentation"], [win.osShortcut("Ctrl+O"), "Open"], [win.osShortcut("Ctrl+S"), "Save"], [win.osShortcut("Ctrl+Shift+S"), "Save as"],
+                [win.osShortcut("Ctrl+E"), "Export as PDF"], [win.osShortcut("Ctrl+Shift+E"), "Export as PowerPoint"], [win.osShortcut("Ctrl+Space / F5"), "Present"], ["Esc", "Stop presenting"],
                 ["Space", "Play or pause video while presenting"] ] },
             { title: "View", keys: [
-                ["Ctrl+M", "Overview on or off"], ["Ctrl+.", "Markdown source on or off"],
+                [win.osShortcut("Ctrl+M"), "Overview on or off"], [win.osShortcut("Ctrl+."), "Markdown source on or off"],
                 ["Tab", "Switch between slides and editor"], ["Enter", "Open slide from Overview"],
                 ["? / F1", "Show these shortcuts"] ] },
             { title: "Slides", keys: [
                 ["Arrows", "Previous or next slide, by row in Overview"], ["Page Up / Page Down", "Jump five slides, or five rows in Overview"],
                 ["Home / End", "First or last slide"], ["Shift+Arrows", "Extend the selection"],
-                ["Ctrl+Arrows", "Move selected slides"], ["Ctrl+Enter", "Add a slide"],
-                ["Ctrl+D", "Duplicate"], ["Delete", "Delete"] ] },
+                [win.osShortcut("Ctrl+Arrows"), "Move selected slides"], [win.osShortcut("Ctrl+Enter"), "Add a slide"],
+                [win.osShortcut("Ctrl+D"), "Duplicate"], ["Delete", "Delete"] ] },
             { title: "Editing", keys: [
-                ["Ctrl+B", "Bold"], ["Ctrl+I", "Italic"], ["Ctrl+U", "Underline"], ["Ctrl+H", "Headline"], ["Ctrl+K", "Code block"],
-                ["Ctrl+/", "Comment, hidden on slide"],
-                ["Ctrl+Z", "Undo"], ["Ctrl+Shift+Z", "Redo"], ["Ctrl+V", "Paste text, or add and name media"] ] }
+                [win.osShortcut("Ctrl+B"), "Bold"], [win.osShortcut("Ctrl+I"), "Italic"], [win.osShortcut("Ctrl+U"), "Underline"], [win.osShortcut("Ctrl+H"), "Headline"], [win.osShortcut("Ctrl+K"), "Code block"],
+                [win.osShortcut("Ctrl+/"), "Comment, hidden on slide"],
+                [win.osShortcut("Ctrl+Z"), "Undo"], [win.osShortcut("Ctrl+Shift+Z"), "Redo"], [win.osShortcut("Ctrl+V"), "Paste text, or add and name media"] ] }
         ]
         contentItem: ColumnLayout {
             spacing: 22; focus: true

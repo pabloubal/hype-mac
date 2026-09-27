@@ -1,5 +1,11 @@
 #include "filedialog.h"
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QScopeGuard>
+#include <QUrl>
+
+#ifdef Q_OS_LINUX
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -7,10 +13,6 @@
 #include <QDBusObjectPath>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
-#include <QDir>
-#include <QFileInfo>
-#include <QScopeGuard>
-#include <QUrl>
 #include <QUuid>
 
 namespace {
@@ -127,3 +129,44 @@ bool FileDialog::eventFilter(QObject *, QEvent *event) {
         return false;
     }
 }
+
+#elif defined(Q_OS_MACOS)
+
+#include <QFileDialog>
+
+// On macOS, QFileDialog uses the native Cocoa file picker (NSOpenPanel / NSSavePanel).
+// It runs its own modal event loop, keeping the UI responsive while the user picks.
+QString FileDialog::choose(bool save, const QString &location, const QString &label,
+                           const QStringList &patterns, QString *error) {
+    Q_UNUSED(error);
+    const QString directory = save ? QFileInfo(location).absolutePath()
+                                   : QDir(location).absolutePath();
+    const QString filterString = label + " (" + patterns.join(' ') + ")";
+
+    QString result;
+    if (save) {
+        result = QFileDialog::getSaveFileName(nullptr, "Save File", location, filterString);
+    } else {
+        result = QFileDialog::getOpenFileName(nullptr, "Open File", directory, filterString);
+    }
+    return result;
+}
+
+// These are unused on macOS but defined to satisfy the linker for the Q_OBJECT class.
+bool FileDialog::listen(const QString &) { return false; }
+void FileDialog::disconnectRequest() {}
+void FileDialog::response(uint, const QVariantMap &) {}
+bool FileDialog::eventFilter(QObject *, QEvent *) { return false; }
+
+#else
+// Fallback: no file dialog support on unknown platforms.
+QString FileDialog::choose(bool, const QString &, const QString &,
+                           const QStringList &, QString *error) {
+    *error = "File dialogs are not supported on this platform.";
+    return {};
+}
+bool FileDialog::listen(const QString &) { return false; }
+void FileDialog::disconnectRequest() {}
+void FileDialog::response(uint, const QVariantMap &) {}
+bool FileDialog::eventFilter(QObject *, QEvent *) { return false; }
+#endif

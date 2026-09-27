@@ -1,7 +1,10 @@
-QT += core gui qml quick quickcontrols2 multimedia concurrent dbus
+QT += core gui qml quick quickcontrols2 multimedia concurrent
+linux: QT += dbus
+macx: QT += widgets
 # Like Qt's own modules, Hype never throws or catches. Without unwinding tables and with
 # link-time optimization, the installed binary is about a quarter smaller.
-CONFIG += c++17 release ltcg exceptions_off
+CONFIG += c++17 release ltcg
+linux: CONFIG += exceptions_off
 TARGET = hype
 TEMPLATE = app
 HEADERS += src/deck.h src/renderer.h src/budget.h
@@ -12,7 +15,15 @@ SOURCES += src/syntax.cpp
 HEADERS += src/syntax.h
 SOURCES += src/pptx.cpp
 HEADERS += src/pptx.h
-LIBS += -lz -lwebpdemux -lwebp
+macx {
+    LIBS += -lz -lwebpdemux -lwebp
+    # Homebrew installs to different prefixes on Intel vs Apple Silicon.
+    HOMEBREW_PREFIX = $$system(brew --prefix)
+    INCLUDEPATH += $$HOMEBREW_PREFIX/include
+    LIBS += -L$$HOMEBREW_PREFIX/lib
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.0
+}
+!macx: LIBS += -lz -lwebpdemux -lwebp
 
 SOURCES += src/animationexport.cpp
 HEADERS += src/animationexport.h

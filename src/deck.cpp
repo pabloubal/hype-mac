@@ -35,7 +35,9 @@
 #include <QThreadPool>
 #include <QtConcurrentRun>
 #include <atomic>
+#ifdef Q_OS_LINUX
 #include <malloc.h>
+#endif
 #include <cerrno>
 #include <climits>
 #include <csignal>
@@ -470,6 +472,10 @@ void Deck::discoverThemes() {
     QString root = qEnvironmentVariable("OMARCHY_PATH", QDir::homePath() + "/.local/share/omarchy");
     QStringList roots{root + "/themes", QDir::homePath() + "/omarchy/themes",
                       QDir::homePath() + "/.config/omarchy/themes"};
+#ifdef Q_OS_MACOS
+    roots << QDir::homePath() + "/Library/Application Support/Hype/themes"
+          << QDir::homePath() + "/.config/hype/themes";
+#endif
     for (auto &r : roots)
         for (auto &name : QDir(r).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             QString path = r + "/" + name + "/colors.toml";
@@ -1428,7 +1434,9 @@ bool Deck::renderImages(const QString &directory, int width, bool powerPoint) {
             emit exportAdvanced(portion * done / count(), QString("Exporting slide %1 of %2").arg(qMin<qsizetype>(count(), done + 1)).arg(count()));
         }
         // Return the workers' freed canvases to the system before the encoder starts.
+#ifdef Q_OS_LINUX
         malloc_trim(0);
+#endif
     }
     QJsonArray slides;
     QHash<QString, QString> convertedVideos;
